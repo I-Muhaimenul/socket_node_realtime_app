@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+    <title>RealTime Chat</title>
+
+    <style>
+        #messages{
+            height: 300px;
+        }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6 offset-md-3 col-sm-12">
+                <h1 class="text-center">
+                    RealTime Chat
+                    <button id="clear" class="btn btn-danger">Clear All</button>
+                </h1>
+                <div id="status"></div>
+                <div id="chat">
+                    <input type="text" id="userName" class="form-comntrol" placeholder="Enter name...">
+                    <br>
+                    <div class="card">
+                        <div id="messages" class="card-block">
+
+                        </div>
+                    </div>
+                    <br>
+                    <textarea class="form-comntrol" id="textarea"  placeholder="Enter message..." ></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js"></script>
+    <script>
+        (() => {
+            var element = (id) => {
+                return document.getElementById(id)
+            }
+
+            // get element
+            var status = element('status')
+            var messages = element('messages')
+            var textarea = element('textarea')
+            var userName = element('userName')
+            var clearBtn = element('clear')
+            
+            //set default status
+            var statusDefault = status.textContent
+
+            var setStatus = (s) => {
+                // set status
+                status.textContent = s
+                if(s !== statusDefault){
+                    var delay = setTimeout(() => {
+                        setStatus(statusDefault)
+                    }, 4000)
+                }
+            }
+
+            // connect to socket.io
+            var socket = io.connect('http://127.0.0.1:4000')
+
+            // check for connection
+            if(socket !== undefined){
+                console.log('connected to socket...')
+
+                // handle output
+                socket.on('output', (data) => {
+                    // console.log(data)
+                    if(data.length){
+                        data.forEach(element => {
+                            //build out message div
+                            var message = document.createElement('div')
+                            message.setAttribute('class', 'chat-message')
+                            message.textContent = element.name + ": "+ element.message
+                            messages.appendChild(message)
+                            messages.insertBefore(message, messages.firstChild)
+                        })
+                    }
+                })
+                
+                // get status from server
+                socket.on('status', (data) => {
+                    //get message status
+                    setStatus((typeof data === 'object') ? data.message : data)
+
+                    //if status is clear, clear text
+                    if(data.clear){
+                        textarea.value = ''
+                    }
+                })
+            
+                // handle input
+                textarea.addEventListener('keydown', (event) => {
+                    if(event.which === 13 && event.shiftKey == false){
+                        //emit to server input
+                        // console.log(textarea.value)
+                        socket.emit('input', {
+                            name: userName.value,
+                            message: textarea.value
+                        })
+                        event.preventDefault()
+                    }
+                })
+                // emit is for input, on is for output depend on perspective
+
+                //handle clear btn
+                clearBtn.addEventListener('click', () => {
+                    socket.emit('clear')
+                })
+                socket.on('cleared', () => {
+                    messages.textContent = ''
+                })
+            }
+        })();
+    </script>
+  </body>
+</html>
